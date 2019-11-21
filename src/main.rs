@@ -2,53 +2,81 @@
 #![no_std]
 
 extern crate panic_halt;
-// use cortex_m;
 
 use crate::hal::{prelude::*, stm32};
 use stm32f4xx_hal as hal;
 
+// Imports to reduce length of type signatures in the code
+use hal::gpio::gpioa::PA5;
+use hal::gpio::{Output, PushPull};
+
+use cortex_m::iprint;
 use cortex_m_semihosting::hprintln;
-// use panic_semihosting as _;
 
-#[rtfm::app(device = stm32f4xx_hal::stm32, peripherals = true)]
+use rtfm::cyccnt::{Instant, U32Ext};
+
+const PERIOD: u32 = 48_000_000;
+
+#[rtfm::app(device = stm32f4xx_hal::stm32, peripherals = true, monotonic = rtfm::cyccnt::CYCCNT)]
 const APP: () = {
-    #[init]
-    fn init(cx: init::Context) {
-        hprintln!("init").unwrap();
 
-        // Cortex-M peripherals
-        let cp: cortex_m::Peripherals = cx.core;
+    struct Resources {
+        led: PA5<Output<PushPull>>,
+        is_on: bool,
+        itm: cortex_m::peripheral::ITM,
+    }
+
+    #[init(schedule = [blinky])]
+    fn init(mut cx: init::Context) -> init::LateResources {
 
         // Device specific peripherals
         let dp: stm32::Peripherals = cx.device;
 
         // Set up the LED: it's connected to pin PA5 on the microcontroler
         let gpioa = dp.GPIOA.split();
-        let mut led = gpioa.pa5.into_push_pull_output();
-
-        // The external LED, on the next pin down:
-        let mut xled = gpioa.pa6.into_push_pull_output();
+        let led = gpioa.pa5.into_push_pull_output();
 
         // Set up the system clock. We want to run at 48MHz for this one.
         let rcc = dp.RCC.constrain();
-        let clocks = rcc.cfgr.sysclk(48.mhz()).freeze();
+        let _clocks = rcc.cfgr.sysclk(48.mhz()).freeze();
 
-        // Create a delay abstraction based on SysTick
-        let mut delay = hal::delay::Delay::new(cp.SYST, clocks);
+        // Initialize (enable) the monotonic timer (CYCCNT)
+        // on the Cortex-M peripherals
+        cx.core.DCB.enable_trace();
+        cx.core.DWT.enable_cycle_counter();
+        let itm = cx.core.ITM;
 
-        loop {
-            led.set_high().unwrap();
-            xled.set_low().unwrap();
-            delay.delay_ms(1000_u32);
-            led.set_low().unwrap();
-            xled.set_high().unwrap();
-            delay.delay_ms(1000_u32);
+        hprintln!("inst {:?}", Instant::now());
+        cx.schedule.blinky(cx.start + PERIOD.cycles()).expect("ooh");
+
+        init::LateResources {
+            led,
+            is_on: false,
+            itm,
         }
     }
 
-    #[idle]
-    fn idle(cx: idle::Context) -> ! {
-        hprintln!("idle").unwrap();
-        loop {}
+    #[task(schedule = [blinky], resources = [led, itm, is_on])]
+    fn blinky(cx: blinky::Context) {
+
+        hprintln!("Blink");
+
+        let is_on: &mut bool = cx.resources.is_on;
+        let led = cx.resources.led;
+
+        if *is_on {
+            led.set_high().unwrap();
+        } else {
+            led.set_low().unwrap();
+        }
+        *is_on = !(*is_on);
+
+        let next = cx.scheduled + PERIOD.cycles();
+        iprint!(&mut cx.resources.itm.stim[0], "{:?}", next);
+        cx.schedule.blinky(next).unwrap();
+    }
+
+    extern "C" {
+        fn USART1();
     }
 };
