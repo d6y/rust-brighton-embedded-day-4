@@ -12,13 +12,12 @@ use hal::gpio::{Output, PushPull};
 
 use cortex_m::iprint;
 
-use rtfm::cyccnt::{Instant, U32Ext};
+use rtfm::cyccnt::U32Ext;
 
 const PERIOD: u32 = 48_000_000;
 
 #[rtfm::app(device = stm32f4xx_hal::stm32, peripherals = true, monotonic = rtfm::cyccnt::CYCCNT)]
 const APP: () = {
-
     struct Resources {
         led: PA5<Output<PushPull>>,
         is_on: bool,
@@ -27,7 +26,6 @@ const APP: () = {
 
     #[init(schedule = [blinky])]
     fn init(mut cx: init::Context) -> init::LateResources {
-
         // Device specific peripherals
         let dp: stm32::Peripherals = cx.device;
 
@@ -45,7 +43,7 @@ const APP: () = {
         cx.core.DWT.enable_cycle_counter();
         let itm = cx.core.ITM;
 
-        cx.schedule.blinky(cx.start + PERIOD.cycles()).unwrap();
+        cx.schedule.blinky(cx.start + PERIOD.cycles()).expect("ooh");
 
         init::LateResources {
             led,
@@ -56,7 +54,6 @@ const APP: () = {
 
     #[task(schedule = [blinky], resources = [led, itm, is_on])]
     fn blinky(cx: blinky::Context) {
-
         let is_on: &mut bool = cx.resources.is_on;
         let led = cx.resources.led;
 
