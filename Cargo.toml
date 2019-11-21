@@ -2,7 +2,7 @@
 authors = ["Richard Dallaway <richard@dallaway.com>"]
 edition = "2018"
 readme = "README.md"
-name = "rust-brighton-embedded-day-4"
+name = "blinky"
 version = "0.1.0"
 
 [dependencies]
@@ -13,22 +13,9 @@ panic-halt = "0.2.0"
 stm32f4xx-hal = { version = "0.6.0", features = ["stm32f411"]}
 cortex-m-rtfm = "0.5.0-beta.1"
 
-# Uncomment for the panic example.
-# panic-itm = "0.4.1"
-
-# Uncomment for the allocator example.
-# alloc-cortex-m = "0.3.5"
-
-# Uncomment for the device example.
-# Update `memory.x`, set target to `thumbv7em-none-eabihf` in `.cargo/config`,
-# and then use `cargo build --examples device` to build it.
-# [dependencies.stm32f3]
-# features = ["stm32f303", "rt"]
-# version = "0.7.1"
-
 # this lets you use `cargo fix`!
 [[bin]]
-name = "rust-brighton-embedded-day-4"
+name = "blinky"
 test = false
 bench = false
 
