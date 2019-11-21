@@ -11,7 +11,6 @@ use hal::gpio::gpioa::PA5;
 use hal::gpio::{Output, PushPull};
 
 use cortex_m::iprint;
-use cortex_m_semihosting::hprintln;
 
 use rtfm::cyccnt::{Instant, U32Ext};
 
@@ -46,8 +45,7 @@ const APP: () = {
         cx.core.DWT.enable_cycle_counter();
         let itm = cx.core.ITM;
 
-        hprintln!("inst {:?}", Instant::now());
-        cx.schedule.blinky(cx.start + PERIOD.cycles()).expect("ooh");
+        cx.schedule.blinky(cx.start + PERIOD.cycles()).unwrap();
 
         init::LateResources {
             led,
@@ -58,8 +56,6 @@ const APP: () = {
 
     #[task(schedule = [blinky], resources = [led, itm, is_on])]
     fn blinky(cx: blinky::Context) {
-
-        hprintln!("Blink");
 
         let is_on: &mut bool = cx.resources.is_on;
         let led = cx.resources.led;
