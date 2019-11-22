@@ -33,17 +33,16 @@ const APP: () = {
         let gpioa = dp.GPIOA.split();
         let led = gpioa.pa5.into_push_pull_output();
 
-        // Set up the system clock. We want to run at 48MHz for this one.
+        // Set up the system clock. We want to run at 48MHz
         let rcc = dp.RCC.constrain();
         let _clocks = rcc.cfgr.sysclk(48.mhz()).freeze();
 
-        // Initialize (enable) the monotonic timer (CYCCNT)
-        // on the Cortex-M peripherals
+        // Initialize (enable) the monotonic timer (CYCCNT) on the Cortex-M peripherals
         cx.core.DCB.enable_trace();
         cx.core.DWT.enable_cycle_counter();
         let itm = cx.core.ITM;
 
-        cx.schedule.blinky(cx.start + PERIOD.cycles()).expect("ooh");
+        cx.schedule.blinky(cx.start + PERIOD.cycles()).unwrap();
 
         init::LateResources {
             led,
@@ -54,8 +53,13 @@ const APP: () = {
 
     #[task(schedule = [blinky], resources = [led, itm, is_on])]
     fn blinky(cx: blinky::Context) {
-        let is_on: &mut bool = cx.resources.is_on;
+
+        // Local alias to the reosurces, which are &mut
+        let is_on = cx.resources.is_on;
         let led = cx.resources.led;
+
+        // The ITM port for logging:
+        let port = &mut cx.resources.itm.stim[0];
 
         if *is_on {
             led.set_high().unwrap();
@@ -65,7 +69,7 @@ const APP: () = {
         *is_on = !(*is_on);
 
         let next = cx.scheduled + PERIOD.cycles();
-        iprint!(&mut cx.resources.itm.stim[0], "{:?}", next);
+        iprint!(port, "{:?}", next);
         cx.schedule.blinky(next).unwrap();
     }
 
