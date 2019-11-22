@@ -10,7 +10,7 @@ use stm32f4xx_hal as hal;
 use hal::gpio::gpioa::PA5;
 use hal::gpio::{Output, PushPull};
 
-use cortex_m::iprint;
+use cortex_m::iprintln;
 
 use rtfm::cyccnt::U32Ext;
 
@@ -20,11 +20,10 @@ const PERIOD: u32 = 48_000_000; // 48mhz
 const APP: () = {
     struct Resources {
         led: PA5<Output<PushPull>>,
-        is_on: bool,
         itm: cortex_m::peripheral::ITM,
     }
 
-    #[init(schedule = [blinky])]
+    #[init(schedule = [lights_on])]
     fn init(mut cx: init::Context) -> init::LateResources {
         // Device specific peripherals
         let dp: stm32::Peripherals = cx.device;
@@ -42,35 +41,35 @@ const APP: () = {
         cx.core.DWT.enable_cycle_counter();
         let itm = cx.core.ITM;
 
-        cx.schedule.blinky(cx.start + PERIOD.cycles()).unwrap();
+        cx.schedule.lights_on(cx.start + PERIOD.cycles()).unwrap();
 
-        init::LateResources {
-            led,
-            is_on: false,
-            itm,
-        }
+        init::LateResources { led, itm }
     }
 
-    #[task(schedule = [blinky], resources = [led, itm, is_on])]
-    fn blinky(cx: blinky::Context) {
-
-        // Local alias to the reosurces, which are &mut
-        let is_on = cx.resources.is_on;
-        let led = cx.resources.led;
-
-        // The ITM port for logging:
-        let port = &mut cx.resources.itm.stim[0];
-
-        if *is_on {
-            led.set_high().unwrap();
-        } else {
-            led.set_low().unwrap();
-        }
-        *is_on = !(*is_on);
+    #[task(schedule = [lights_off], resources = [led, itm])]
+    fn lights_on(cx: lights_on::Context) {
+        cx.resources.led.set_high().expect("failed to set high");
 
         let next = cx.scheduled + PERIOD.cycles();
-        iprint!(port, "{:?}", next);
-        cx.schedule.blinky(next).unwrap();
+        cx.schedule
+            .lights_off(next)
+            .expect("failed to schedule lights off");
+
+        let port = &mut cx.resources.itm.stim[0];
+        iprintln!(port, "Off at: {:?}", next);
+    }
+
+    #[task(schedule = [lights_on], resources = [led, itm])]
+    fn lights_off(cx: lights_off::Context) {
+        cx.resources.led.set_low().expect("failed to set low");
+
+        let next = cx.scheduled + PERIOD.cycles();
+        cx.schedule
+            .lights_on(next)
+            .expect("failed to schedule lights on");
+
+        let port = &mut cx.resources.itm.stim[0];
+        iprintln!(port, "On at: {:?}", next);
     }
 
     extern "C" {
