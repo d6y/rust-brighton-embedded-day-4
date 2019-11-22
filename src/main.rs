@@ -14,7 +14,7 @@ use cortex_m::iprint;
 
 use rtfm::cyccnt::U32Ext;
 
-const PERIOD: u32 = 48_000_000;
+const PERIOD: u32 = 48_000_000; // 48mhz
 
 #[rtfm::app(device = stm32f4xx_hal::stm32, peripherals = true, monotonic = rtfm::cyccnt::CYCCNT)]
 const APP: () = {
